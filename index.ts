@@ -42,7 +42,7 @@ app.post("/generate", async (req, res) => {
                         type: "string"
                     }
                 },
-                required: ["step"]
+                required: ["step" , "content"],
             }
         }
 
@@ -55,19 +55,44 @@ app.post("/generate", async (req, res) => {
     try {
         if(response.text){
            messages.push({role:"model" , parts : [{text : response.text}]})
-            let parsedRes = JSON.parse(response.text.trim().replace(/^```(?:json)?\r?\n?/, "")
-      .replace(/```$/, ""))
-            console.log(parsedRes)
-            const {step , content} = parsedRes
+        
+        
+        let responseText = response.text.trim();
+        let jsonText = responseText;
+        
+       
+        if (responseText.startsWith('```json')) {
+            jsonText = responseText.replace(/^```json\r?\n/, '').replace(/```$/, '');
+        } else if (responseText.startsWith('```')) {
+            jsonText = responseText.replace(/^```\r?\n?/, '').replace(/```$/, '');
+        }
+        
+       
+        let parsedRes;
+        try {
+            parsedRes = JSON.parse(jsonText);
+        } catch (jsonError) {
+            console.log("Error parsing JSON:", jsonError);
+            console.log("Raw response:", responseText);
+            
+            
+            const fixMessage = "Please provide your response in valid JSON format with 'step' and 'content' fields.";
+            messages.push({ role: "user", parts: [{ text: fixMessage }] });
+            continue; 
+        }
+        
+        console.log(parsedRes);
+        const {step, content} = parsedRes
 
             if(step == "linux"){
                 exec(content , (err , output) => {
                     if(err){
                         console.log(err);
+                        messages.push({ role: "user", parts: [{ text: output }] });
                         return;
                     }
 
-                    console.log(output)
+                    messages.push({ role: "model", parts: [{ text: output }] });
                 } )
             }
         } 
