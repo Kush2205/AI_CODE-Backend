@@ -3,11 +3,16 @@ import { exec } from "node:child_process"
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv"
 import { Message } from "./types/types";
+import path from "path";
 
 dotenv.config();
 const app = express();
 console.log(process.env.GEMINI_API_KEY)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const rootDir = path.resolve(__dirname, "..");
+
+
+
 
 app.use(express.json())
 const system_prompt = process.env.SYSTEM_PROMPT;
@@ -26,7 +31,7 @@ app.post("/generate", async (req, res) => {
     messages.push({ role: "user", parts: [{ text: message }] });
 
     const chat = ai.chats.create({
-        model: "gemini-2.5-flash",
+        model: "gemini-2.5",
         history: messages,
         config: {
             systemInstruction: system_prompt,
@@ -95,6 +100,33 @@ app.post("/generate", async (req, res) => {
                     messages.push({ role: "model", parts: [{ text: output }] });
                 } )
             }
+            
+            if(step == "Done"){
+                
+                if (content && content.length > 0) {
+                    const filePath = content[0]; // Get the first file path
+                
+                    const absolutePath = path.join(rootDir, filePath);
+                    
+                    console.log("Sending file from:", absolutePath);
+                    
+                    res.sendFile(absolutePath, (err) => {
+                        if (err) {
+                            console.log("Error sending file:", err);
+                            res.status(404).send("File not found");
+                        } else {
+                            console.log("File sent successfully:", filePath);
+                        }
+                    });
+                    
+                    
+                   
+                } else {
+                    res.status(404).send("No files generated");
+                    break;
+                }
+            } 
+
         } 
         
     } catch (error) {
